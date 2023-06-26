@@ -63,4 +63,18 @@ mod system_calls {
     fn sys_close(fd: c_int) -> c_int {
         unsafe { libc::close(fd) }
     }
+
+    // SYS_READ reads from a file descriptor
+    // @note low level system call
+    // The read() system call is used to read data from a file descriptor into a buffer.
+    pub fn sys_read(fd: c_int, buf: &mut [u8]) -> io::Result<usize> {
+        let mut file = unsafe { File::from_raw_fd(fd) };
+        // error handling, the descriptor may not be valid
+        let bytes_read = match file.read(buf) {
+            Ok(bytes) => bytes,
+            Err(ref e) if e.kind() == io::ErrorKind::Interrupted => 0,
+            Err(e) => return Err(e),
+        };
+        Ok(bytes_read)
+    }
 }
