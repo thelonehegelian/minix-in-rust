@@ -1,10 +1,13 @@
 extern crate libc;
-use libc::c_int;
+use libc::off_t;
+use libc::{c_int, c_long, fcntl, lseek, EINVAL, F_GETFD};
 use nix::sys::wait::waitpid;
 use nix::unistd::{execvp, fork, ForkResult};
+use std::any::TypeId;
 use std::fs::File;
 use std::io::{self, Read};
 use std::os::unix::io::FromRawFd;
+use std::os::unix::io::RawFd;
 
 // @note where does the user provide the prompt for the system call?
 // https://github.com/Stichting-MINIX-Research-Foundation/minix/blob/master/minix/servers/pm/exec.c
@@ -76,5 +79,20 @@ mod system_calls {
             Err(e) => return Err(e),
         };
         Ok(bytes_read)
+    }
+
+    pub fn sys_lseek(fd: RawFd, offset: isize, whence: c_int) -> std::io::Result<isize> {
+        // lets make sure the file descriptor is valid and the offset is valid
+        unsafe {
+            if fcntl(fd, F_GETFD) == -1 {
+                return Err(std::io::Error::last_os_error());
+            }
+        }
+        let ret = unsafe { lseek(fd, offset as off_t, whence) };
+        if ret == -1 {
+            Err(std::io::Error::last_os_error())
+        } else {
+            Ok(ret as isize)
+        }
     }
 }
