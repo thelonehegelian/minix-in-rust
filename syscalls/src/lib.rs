@@ -1,6 +1,6 @@
 extern crate libc;
 use libc::off_t;
-use libc::{c_int, c_long, fcntl, lseek, EINVAL, F_GETFD};
+use libc::{c_int, c_long, creat, fcntl, lseek, EINVAL, F_GETFD};
 use nix::sys::wait::waitpid;
 use nix::unistd::{execvp, fork, ForkResult};
 use std::any::TypeId;
@@ -81,6 +81,7 @@ mod system_calls {
         Ok(bytes_read)
     }
 
+    // SYS_LSEEK repositions the offset of the open file associated with the file descriptor
     pub fn sys_lseek(fd: RawFd, offset: isize, whence: c_int) -> std::io::Result<isize> {
         // lets make sure the file descriptor is valid and the offset is valid
         unsafe {
@@ -89,6 +90,25 @@ mod system_calls {
             }
         }
         let ret = unsafe { lseek(fd, offset as off_t, whence) };
+        if ret == -1 {
+            Err(std::io::Error::last_os_error())
+        } else {
+            Ok(ret as isize)
+        }
+    }
+
+    pub fn sys_create(path: &str, permissions: c_int) -> std::io::Result<c_int> {
+        let fd = unsafe { creat(path, permissions) };
+        if fd == -1 {
+            Err(std::io::Error::last_os_error())
+        } else {
+            Ok(fd)
+        }
+    }
+
+    // SYS_UNLINK deletes a name from the filesystem
+    pub fn sys_unlink(path: &str) -> std::io::Result<isize> {
+        let ret = unsafe { libc::unlink(path) };
         if ret == -1 {
             Err(std::io::Error::last_os_error())
         } else {
