@@ -3,6 +3,7 @@
 *    https://doc.rust-lang.org/std/ffi/struct.CString.html
 *    @todo we need to make path handling consistent
 *    @note perhaps its best to use types from libc for the system calls for consistency and clarity
+*    @todo replace isize return types with Result<isize, nix::Error> ? or just Result?
 */
 extern crate libc;
 use libc::off_t;
@@ -160,5 +161,14 @@ mod system_calls {
             return Err(std::io::Error::last_os_error());
         }
         Ok(ret as usize)
+    }
+
+    pub fn sys_chdir(path: &str) -> std::io::Result<()> {
+        let c_path = std::ffi::CString::new(path)?;
+        let ret = unsafe { libc::chdir(c_path.as_ptr() as *const i8) };
+        if ret == -1 {
+            return Err(std::io::Error::last_os_error());
+        }
+        Ok(())
     }
 }
