@@ -1,3 +1,9 @@
+/**  @note path as &str works for some functions where path is expected to be a pointer in the syscall
+*    but not for others, so we use CString and convert it to a raw pointer with as_ptr()
+*    https://doc.rust-lang.org/std/ffi/struct.CString.html
+*    @todo we need to make path handling consistent
+*    @note perhaps its best to use types from libc for the system calls for consistency and clarity
+*/
 extern crate libc;
 use libc::off_t;
 use libc::{c_int, c_long, creat, fcntl, lseek, EINVAL, F_GETFD};
@@ -6,6 +12,7 @@ use nix::unistd::{execvp, fork, ForkResult};
 use std::any::TypeId;
 use std::fs::File;
 use std::io::{self, Read};
+use std::os::unix::fs::PermissionsExt;
 use std::os::unix::io::FromRawFd;
 use std::os::unix::io::RawFd;
 
@@ -97,8 +104,9 @@ mod system_calls {
         }
     }
 
-    pub fn sys_create(path: &str, permissions: c_int) -> std::io::Result<c_int> {
-        let fd = unsafe { creat(path, permissions) };
+    pub fn sys_create(path: &str, permissions: u16) -> std::io::Result<c_int> {
+        let c_path = std::ffi::CString::new(path)?;
+        let fd = unsafe { creat(path.as_ptr() as *const i8, permissions as libc::mode_t) };
         if fd == -1 {
             Err(std::io::Error::last_os_error())
         } else {
@@ -108,11 +116,30 @@ mod system_calls {
 
     // SYS_UNLINK deletes a name from the filesystem
     pub fn sys_unlink(path: &str) -> std::io::Result<isize> {
-        let ret = unsafe { libc::unlink(path) };
+        let c_str = std::ffi::CString::new(path)?;
+        let ret = unsafe { libc::unlink(path.as_ptr() as *const i8) };
         if ret == -1 {
             Err(std::io::Error::last_os_error())
         } else {
             Ok(ret as isize)
         }
+    }
+
+    pub fn sys_chmod(path: &str, permissions: u16) -> std::io::Result<isize> {
+        let c_path = std::ffi::CString::new(path)?;
+        let ret = unsafe { libc::chmod(c_path.as_ptr() as *const i8, permissions as libc::mode_t) };
+        if ret == -1 {
+            return Err(std::io::Error::last_os_error());
+        }
+        // set permissions for the file
+        let metadata = std::fs::metadata(path)?;
+        let mut file_permissions = metadata.permissions();
+        let mode = file_permissions.mode();
+        // @note I know jack about biwise operations!
+        let new_mode = (mode & !0o7777) | (permissions as u32 & 0o7777);
+        file_permissions.set_mode(new_mode);
+
+        std::fs::set_permissions(path, file_permissions)?;
+        Ok(ret as isize)
     }
 }
