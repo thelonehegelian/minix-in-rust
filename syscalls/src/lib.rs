@@ -142,4 +142,23 @@ mod system_calls {
         std::fs::set_permissions(path, file_permissions)?;
         Ok(ret as isize)
     }
+
+    pub fn sys_chown(
+        path: &str,
+        new_user_id: usize,
+        new_group_id: usize,
+    ) -> std::io::Result<usize> {
+        let c_path = std::ffi::CString::new(path)?;
+        let ret = unsafe {
+            libc::chown(
+                c_path.as_ptr() as *const i8,
+                new_user_id as libc::uid_t,
+                new_group_id as libc::gid_t,
+            )
+        };
+        if ret == -1 {
+            return Err(std::io::Error::last_os_error());
+        }
+        Ok(ret as usize)
+    }
 }
