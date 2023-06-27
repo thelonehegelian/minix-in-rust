@@ -179,4 +179,20 @@ mod system_calls {
         }
         Ok(pid as usize)
     }
+
+    pub fn sys_getppid() -> std::io::Result<(usize)> {
+        let ppid = unsafe { libc::getppid() };
+        if ppid == -1 {
+            return Err(std::io::Error::last_os_error());
+        }
+        Ok(ppid as usize)
+    }
+
+    pub fn sys_kill(pid: isize, signal_num: isize) -> std::io::Result<usize> {
+        let ret = unsafe { libc::kill(pid as i32, signal_num as i32) };
+        if ret == -1 {
+            return Err(std::io::Error::last_os_error());
+        }
+        Ok(ret as usize)
+    }
 }
