@@ -171,4 +171,12 @@ mod system_calls {
         }
         Ok(())
     }
+
+    pub fn sys_getpid() -> std::io::Result<(usize)> {
+        let pid = unsafe { libc::getpid() };
+        if pid == -1 {
+            return Err(std::io::Error::last_os_error());
+        }
+        Ok(pid as usize)
+    }
 }
