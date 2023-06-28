@@ -4,6 +4,7 @@
 *    @todo we need to make path handling consistent
 *    @note perhaps its best to use types from libc for the system calls for consistency and clarity
 *    @todo replace isize return types with Result<isize, nix::Error> ? or just Result?
+*    @todo think about what sort of error loggin we need to do for the system calls, simlply generating an error is not enough
 */
 extern crate libc;
 use libc::off_t;
@@ -20,6 +21,8 @@ use std::os::unix::io::RawFd;
 // @note where does the user provide the prompt for the system call?
 // https://github.com/Stichting-MINIX-Research-Foundation/minix/blob/master/minix/servers/pm/exec.c
 mod system_calls {
+    use libc::time_t;
+
     use super::*;
     // SYS_FORK
     pub fn sys_fork() {
@@ -194,5 +197,39 @@ mod system_calls {
             return Err(std::io::Error::last_os_error());
         }
         Ok(ret as usize)
+    }
+
+    // * 1. Call the sbrk system call to change the heap size
+    // * 2. Check if the sbrk system call was successful
+    // * 3. Return the updated heap address if the sbrk call was successful
+    // * 4. Return an error if the sbrk call was not successful
+    pub fn sys_sbrk(increment: libc::intptr_t) -> std::io::Result<libc::intptr_t> {
+        unsafe {
+            let curr_brk = libc::sbrk(0);
+            if curr_brk == libc::sbrk(-1) {
+                return Err(std::io::Error::last_os_error());
+            }
+            let new_brk = libc::sbrk(increment as i32);
+            if new_brk == libc::sbrk(-1) {
+                return Err(std::io::Error::last_os_error());
+            }
+            Ok(new_brk as libc::intptr_t)
+        }
+    }
+
+    pub fn sys_time() -> std::io::Result<libc::time_t> {
+        let time = unsafe { libc::time(std::ptr::null_mut()) };
+        if time == -1 {
+            return Err(std::io::Error::last_os_error());
+        }
+        Ok(time)
+    }
+
+    pub fn sys_sleep(seconds: usize) -> io::Result<libc::c_uint> {
+        let ret = unsafe { libc::sleep(seconds as libc::c_uint) };
+        if ret != 0 {
+            return Err(io::Error::last_os_error());
+        }
+        Ok(ret)
     }
 }
