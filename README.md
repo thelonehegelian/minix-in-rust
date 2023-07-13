@@ -9,3 +9,4 @@
 
 - Minix Foundation repo [https://github.com/Stichting-MINIX-Research-Foundation/minix/]
 - Older Version (relevant files are easier to find in some cases) [https://github.com/0xffea/MINIX3/]
+- https://github.com/o-oconnell/minixfromscratch/tree/master
