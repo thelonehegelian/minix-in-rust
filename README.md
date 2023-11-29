@@ -1,4 +1,4 @@
-# Minix clone in Rust (stupid to even an attempt)
+# Minix clone in Rust (stupid to even attempt)
 
 ## Resources
 
